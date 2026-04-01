@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { ThemeProvider } from '@/components/theme-provider'
-import { ComingSoon } from '@/components/ComingSoon'
+import { AuthProvider } from '@/context/AuthContext'
+import ProtectedRoute from '@/components/ProtectedRoute'
 
 // Public Pages
 import Landing from '@/pages/Landing'
@@ -37,48 +38,56 @@ import AdminSettings from '@/pages/admin/Settings'
 function App() {
   return (
     <ThemeProvider defaultTheme="dark" storageKey="hostellite-theme">
-      <BrowserRouter>
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/" element={<Landing />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
+      <AuthProvider>
+        <BrowserRouter>
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/" element={<Landing />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
 
-          {/* Student Routes */}
-          <Route path="/student" element={<StudentLayout />}>
-            <Route index element={<Navigate to="/student/dashboard" replace />} />
-            <Route path="dashboard" element={<StudentDashboard />} />
-            <Route path="fees" element={<StudentFees />} />
-            <Route path="complaints" element={<StudentComplaints />} />
-            <Route path="profile" element={<StudentProfile />} />
-            <Route path="leave" element={<LeaveApplication />} />
-          </Route>
+            {/* Student Routes */}
+            <Route element={<ProtectedRoute allowedRoles={['STUDENT']} />}>
+              <Route path="/student" element={<StudentLayout />}>
+                <Route index element={<Navigate to="/student/dashboard" replace />} />
+                <Route path="dashboard" element={<StudentDashboard />} />
+                <Route path="fees" element={<StudentFees />} />
+                <Route path="complaints" element={<StudentComplaints />} />
+                <Route path="profile" element={<StudentProfile />} />
+                <Route path="leave" element={<LeaveApplication />} />
+              </Route>
+            </Route>
 
-          {/* Staff Routes */}
-          <Route path="/staff" element={<StaffLayout />}>
-            <Route index element={<Navigate to="/staff/dashboard" replace />} />
-            <Route path="dashboard" element={<StaffDashboard />} />
-            <Route path="tasks" element={<StaffTasks />} />
-            <Route path="complaints" element={<StaffComplaints />} />
-            <Route path="rooms" element={<StaffRooms />} />
-          </Route>
+            {/* Staff Routes */}
+            <Route element={<ProtectedRoute allowedRoles={['STAFF']} />}>
+              <Route path="/staff" element={<StaffLayout />}>
+                <Route index element={<Navigate to="/staff/dashboard" replace />} />
+                <Route path="dashboard" element={<StaffDashboard />} />
+                <Route path="tasks" element={<StaffTasks />} />
+                <Route path="complaints" element={<StaffComplaints />} />
+                <Route path="rooms" element={<StaffRooms />} />
+              </Route>
+            </Route>
 
-          {/* Admin Routes */}
-          <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<Navigate to="/admin/dashboard" replace />} />
-            <Route path="dashboard" element={<AdminDashboard />} />
-            <Route path="students" element={<AdminStudents />} />
-            <Route path="staff" element={<AdminStaff />} />
-            <Route path="rooms" element={<AdminRooms />} />
-            <Route path="payments" element={<AdminPayments />} />
-            <Route path="notifications" element={<AdminNotifications />} />
-            <Route path="settings" element={<AdminSettings />} />
-          </Route>
+            {/* Admin Routes */}
+            <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
+              <Route path="/admin" element={<AdminLayout />}>
+                <Route index element={<Navigate to="/admin/dashboard" replace />} />
+                <Route path="dashboard" element={<AdminDashboard />} />
+                <Route path="students" element={<AdminStudents />} />
+                <Route path="staff" element={<AdminStaff />} />
+                <Route path="rooms" element={<AdminRooms />} />
+                <Route path="payments" element={<AdminPayments />} />
+                <Route path="notifications" element={<AdminNotifications />} />
+                <Route path="settings" element={<AdminSettings />} />
+              </Route>
+            </Route>
 
-          {/* Catch all */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </BrowserRouter>
+            {/* Catch all */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </BrowserRouter>
+      </AuthProvider>
     </ThemeProvider>
   )
 }

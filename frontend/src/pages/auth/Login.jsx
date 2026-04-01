@@ -1,30 +1,74 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, useContext } from 'react'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Building2, Building, User, Mail, Lock } from 'lucide-react'
+import { Building2, Building, User, Mail, Lock, AlertCircle } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { AuthContext } from '@/context/AuthContext'
 
 export default function Login() {
   const navigate = useNavigate()
-  const [email, setEmail] = useState('student@example.com')
-  const [password, setPassword] = useState('password123')
+  const { login, user, loading: authLoading } = useContext(AuthContext)
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [errorMsg, setErrorMsg] = useState('')
 
-  const handleLogin = (e) => {
-    e.preventDefault()
-    setIsLoading(true)
-    
-    // Mock login based on email
-    setTimeout(() => {
-      if (email.includes('admin')) {
-        navigate('/admin/dashboard')
-      } else if (email.includes('staff')) {
-        navigate('/staff/dashboard')
-      } else {
-        navigate('/student/dashboard')
-      }
-    }, 800)
+  if (authLoading) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center bg-background">
+        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-primary" />
+      </div>
+    )
   }
+
+  if (user) {
+    const homePath = user.role === 'ADMIN' ? '/admin/dashboard' : user.role === 'STAFF' ? '/staff/dashboard' : '/student/dashboard'
+    return <Navigate to={homePath} replace />
+  }
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setErrorMsg('');
+
+    try {
+      const user = await login(email, password);
+
+      if (user.role === 'ADMIN') {
+        navigate('/admin/dashboard');
+      } else if (user.role === 'STAFF') {
+        navigate('/staff/dashboard');
+      } else {
+        navigate('/student/dashboard');
+      }
+    } catch (err) {
+      setErrorMsg(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleMockLogin = async (mockEmail, mockPassword) => {
+    setEmail(mockEmail);
+    setPassword(mockPassword);
+    setIsLoading(true);
+    setErrorMsg('');
+
+    try {
+      const user = await login(mockEmail, mockPassword);
+      if (user.role === 'ADMIN') {
+        navigate('/admin/dashboard');
+      } else if (user.role === 'STAFF') {
+        navigate('/staff/dashboard');
+      } else {
+        navigate('/student/dashboard');
+      }
+    } catch (err) {
+      setErrorMsg(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex relative overflow-hidden bg-background">
@@ -50,10 +94,21 @@ export default function Login() {
           transition={{ duration: 0.5 }}
           className="w-full max-w-md glass-card p-8 md:p-12 shadow-2xl relative"
         >
-          <div className="text-center mb-8">
+          <div className="text-center mb-6">
             <h1 className="text-3xl font-heading font-bold mb-2">Welcome back</h1>
             <p className="text-muted-foreground">Sign in to your account to continue</p>
           </div>
+
+          {errorMsg && (
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              className="mb-6 p-4 rounded-xl bg-destructive/15 border border-destructive/30 flex items-start gap-3 text-destructive"
+            >
+              <AlertCircle className="w-5 h-5 mt-0.5 shrink-0" />
+              <p className="text-sm font-medium">{errorMsg}</p>
+            </motion.div>
+          )}
 
           <form onSubmit={handleLogin} className="space-y-5">
             <div className="space-y-2">
@@ -113,9 +168,9 @@ export default function Login() {
           <div className="mt-8 pt-6 border-t border-border/50 text-xs text-center text-muted-foreground space-y-2">
             <p>Mock login hints:</p>
             <div className="flex justify-center gap-4">
-              <button type="button" onClick={() => { setEmail('student@example.com'); setTimeout(() => navigate('/student/dashboard'), 300); }} className="hover:text-primary transition-colors">Student</button>
-              <button type="button" onClick={() => { setEmail('staff@example.com'); setTimeout(() => navigate('/staff/dashboard'), 300); }} className="hover:text-primary transition-colors">Staff</button>
-              <button type="button" onClick={() => { setEmail('admin@example.com'); setTimeout(() => navigate('/admin/dashboard'), 300); }} className="hover:text-primary transition-colors">Admin</button>
+              <button type="button" onClick={() => handleMockLogin('student@example.com', 'student123')} className="hover:text-primary transition-colors">Student</button>
+              <button type="button" onClick={() => handleMockLogin('staff@example.com', 'staff123')} className="hover:text-primary transition-colors">Staff</button>
+              <button type="button" onClick={() => handleMockLogin('admin@example.com', 'admin123')} className="hover:text-primary transition-colors">Admin</button>
             </div>
           </div>
         </motion.div>

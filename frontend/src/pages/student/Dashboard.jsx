@@ -1,6 +1,8 @@
+import { useState, useEffect, useContext } from 'react'
 import { motion } from 'framer-motion'
-// Removed unused import for shadcn cards
 import { CreditCard, Megaphone, Home, CheckCircle2 } from 'lucide-react'
+import { AuthContext } from '@/context/AuthContext'
+import api from '@/lib/api'
 
 // Basic custom card layout for clean aesthetics
 function GlassWidget({ title, value, subtext, icon, gradient }) {
@@ -25,34 +27,84 @@ function GlassWidget({ title, value, subtext, icon, gradient }) {
 }
 
 export default function StudentDashboard() {
+  const { user } = useContext(AuthContext)
+  const [room, setRoom] = useState(null)
+  const [payments, setPayments] = useState([])
+  const [complaints, setComplaints] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [roomRes, paymentsRes, complaintsRes] = await Promise.all([
+          api.get('/rooms/my-room'),
+          api.get('/payments/my-transactions'),
+          api.get('/complaints')
+        ])
+        
+        setRoom(roomRes.data.data.room)
+        setPayments(paymentsRes.data.data.payments)
+        setComplaints(complaintsRes.data.data.complaints)
+      } catch (error) {
+        console.error('Error fetching data:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [])
+
+  if (loading) {
+    return <div className="flex justify-center items-center h-64">Loading...</div>
+  }
+
+  // Calculate pending payments
+  const pendingPayments = payments.filter(p => p.status === 'PENDING')
+  const totalPending = pendingPayments.reduce((sum, p) => sum + p.amount, 0)
+
+  // Recent activities from payments and complaints
+  const activities = [
+    ...payments.slice(0, 2).map(p => ({
+      time: new Date(p.createdAt).toLocaleDateString(),
+      desc: `Payment ${p.status.toLowerCase()}: $${p.amount}`,
+      status: p.status === 'SUCCESS' ? 'primary' : 'amber'
+    })),
+    ...complaints.slice(0, 1).map(c => ({
+      time: new Date(c.createdAt).toLocaleDateString(),
+      desc: `Complaint #${c._id.slice(-4)} ${c.status.toLowerCase()}`,
+      status: c.status === 'RESOLVED' ? 'emerald' : 'amber'
+    }))
+  ].sort((a, b) => new Date(b.time) - new Date(a.time))
+
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <GlassWidget 
            title="Next Due Date" 
-           value="15 Oct" 
-           subtext="$450 Pending Rent" 
+           value={pendingPayments.length > 0 ? new Date(pendingPayments[0].createdAt).toLocaleDateString() : "No dues"} 
+           subtext={totalPending > 0 ? `$${totalPending} Pending` : "All paid"} 
            icon={<CreditCard className="w-8 h-8 text-rose-500" />} 
            gradient="border-t-rose-500/50"
         />
         <GlassWidget 
            title="Room Status" 
-           value="Block B, 302" 
-           subtext="Shared (2-Bed) • Good condition" 
+           value={room ? `${room.hostelId.name}, ${room.roomNumber}` : "Not allocated"} 
+           subtext={room ? `Floor ${room.floor} • ${room.capacity}-Bed` : ""} 
            icon={<Home className="w-8 h-8 text-primary" />} 
            gradient="border-t-primary/50"
         />
         <GlassWidget 
            title="Open Complaints" 
-           value="0" 
-           subtext="All issues resolved" 
+           value={complaints.filter(c => c.status !== 'RESOLVED').length} 
+           subtext="Pending resolution" 
            icon={<CheckCircle2 className="w-8 h-8 text-emerald-500" />} 
            gradient="border-t-emerald-500/50"
         />
         <GlassWidget 
            title="Recent Notice" 
-           value="Water Main" 
-           subtext="Maintenance tomorrow 10AM" 
+           value="System" 
+           subtext="Welcome to HostelLite" 
            icon={<Megaphone className="w-8 h-8 text-amber-500" />} 
            gradient="border-t-amber-500/50"
         />
@@ -64,22 +116,20 @@ export default function StudentDashboard() {
              Recent Activity
            </h3>
            <div className="space-y-6">
-              {[
-                { time: "Today, 09:41 AM", desc: "Outpass approved by Warden", status: "success" },
-                { time: "Yesterday", desc: "Rent payment $450 processed", status: "primary" },
-                { time: "12 Mar 2026", desc: "Complaint #1042 resolved by maintenance", status: "emerald" },
-              ].map((act, i) => (
+              {activities.length > 0 ? activities.map((act, i) => (
                 <div key={i} className="flex gap-4">
                   <div className="flex flex-col items-center">
-                    <div className={`w-3 h-3 rounded-full bg-${act.status === 'primary' ? 'primary' : act.status === 'success' ? 'amber-500' : 'emerald-500'} ring-4 ring-background z-10`} />
-                    {i !== 2 && <div className="w-[1px] h-full bg-border mt-1 relative -top-2" />}
+                    <div className={`w-3 h-3 rounded-full bg-${act.status === 'primary' ? 'primary' : act.status === 'emerald' ? 'emerald-500' : 'amber-500'} ring-4 ring-background z-10`} />
+                    {i !== activities.length - 1 && <div className="w-[1px] h-full bg-border mt-1 relative -top-2" />}
                   </div>
                   <div className="pb-6">
                     <div className="text-sm font-medium">{act.desc}</div>
                     <div className="text-xs text-muted-foreground mt-1">{act.time}</div>
                   </div>
                 </div>
-              ))}
+              )) : (
+                <p className="text-muted-foreground">No recent activity</p>
+              )}
            </div>
          </div>
          

@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { CheckSquare, MessageSquarePlus, Home, Clock } from 'lucide-react'
+import api from '@/lib/api'
 
 function TaskCard({ title, priority, location, time }) {
   return (
@@ -26,23 +28,47 @@ function TaskCard({ title, priority, location, time }) {
 }
 
 export default function StaffDashboard() {
+  const [complaints, setComplaints] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const complaintsRes = await api.get('/complaints')
+        setComplaints(complaintsRes.data.data.complaints || [])
+      } catch (error) {
+        console.error('Error fetching data:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [])
+
+  if (loading) {
+    return <div className="flex justify-center items-center h-64">Loading...</div>
+  }
+
+  const openComplaints = complaints.filter(c => c.status !== 'RESOLVED')
+
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="glass-card p-6 flex flex-col justify-center items-center text-center">
           <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center mb-3 text-primary"><CheckSquare className="w-6 h-6" /></div>
-          <h3 className="text-3xl font-heading font-bold">12</h3>
-          <p className="text-sm font-medium text-muted-foreground">Pending Tasks</p>
-        </div>
-        <div className="glass-card p-6 flex flex-col justify-center items-center text-center">
-          <div className="w-12 h-12 rounded-full bg-rose-500/20 flex items-center justify-center mb-3 text-rose-500"><MessageSquarePlus className="w-6 h-6" /></div>
-          <h3 className="text-3xl font-heading font-bold">4</h3>
+          <h3 className="text-3xl font-heading font-bold">{openComplaints.length}</h3>
           <p className="text-sm font-medium text-muted-foreground">Open Complaints</p>
         </div>
         <div className="glass-card p-6 flex flex-col justify-center items-center text-center">
+          <div className="w-12 h-12 rounded-full bg-rose-500/20 flex items-center justify-center mb-3 text-rose-500"><MessageSquarePlus className="w-6 h-6" /></div>
+          <h3 className="text-3xl font-heading font-bold">{complaints.length}</h3>
+          <p className="text-sm font-medium text-muted-foreground">Total Complaints</p>
+        </div>
+        <div className="glass-card p-6 flex flex-col justify-center items-center text-center">
           <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center mb-3 text-emerald-500"><Home className="w-6 h-6" /></div>
-          <h3 className="text-3xl font-heading font-bold">85%</h3>
-          <p className="text-sm font-medium text-muted-foreground">Cleaned Rooms</p>
+          <h3 className="text-3xl font-heading font-bold">{complaints.filter(c => c.status === 'RESOLVED').length}</h3>
+          <p className="text-sm font-medium text-muted-foreground">Resolved Complaints</p>
         </div>
       </div>
 
@@ -57,10 +83,17 @@ export default function StaffDashboard() {
            </div>
            
            <div className="space-y-4">
-              <TaskCard title="Fix leaky faucet" priority="High" location="Room 302, Block A" time="10:00 AM" />
-              <TaskCard title="Weekly Deep Clean" priority="Medium" location="Common Area, Floor 2" time="11:30 AM" />
-              <TaskCard title="Replace light bulb" priority="Low" location="Room 105, Block C" time="2:00 PM" />
-              <TaskCard title="Sanitize corridor" priority="High" location="Corridor B" time="4:00 PM" />
+              {openComplaints.length > 0 ? openComplaints.map((complaint, i) => (
+                <TaskCard 
+                  key={i} 
+                  title={complaint.title} 
+                  priority="High" 
+                  location={`Hostel ${complaint.hostelId?.name || 'Unknown'}`} 
+                  time={new Date(complaint.createdAt).toLocaleDateString()} 
+                />
+              )) : (
+                <p className="text-muted-foreground">No pending tasks</p>
+              )}
            </div>
          </div>
          

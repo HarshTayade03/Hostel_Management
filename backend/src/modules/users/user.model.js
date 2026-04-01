@@ -48,13 +48,12 @@ const userSchema = new mongoose.Schema({
 });
 
 // Password hashing middleware
-userSchema.pre('save', async function(next) {
+userSchema.pre('save', async function() {
   // Only run this function if password was actually modified
-  if (!this.isModified('password')) return next();
+  if (!this.isModified('password')) return;
 
   // Hash the password with cost of 12
   this.password = await bcrypt.hash(this.password, 12);
-  next();
 });
 
 // Instance method to check password
@@ -63,10 +62,10 @@ userSchema.methods.correctPassword = async function(candidatePassword, userPassw
 };
 
 // Filter out inactive users on queries
-userSchema.pre(/^find/, function(next) {
+userSchema.pre(/^find/, function() {
+  console.log('User pre-find hook activated', this.getQuery());
   // this points to the current query
   this.find({ isActive: { $ne: false } });
-  next();
 });
 
 const User = mongoose.model('User', userSchema);

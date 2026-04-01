@@ -1,27 +1,45 @@
-import { useState } from 'react'
+import { useState, useContext, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { User, Phone, MapPin, Mail, Camera, Edit2, ShieldCheck, Check } from 'lucide-react'
+import { AuthContext } from '@/context/AuthContext'
+import api from '@/lib/api'
 
 export default function Profile() {
+  const { user } = useContext(AuthContext)
   const [isEditing, setIsEditing] = useState(false)
   const [profile, setProfile] = useState({
-    name: 'John Doe',
-    email: 'student@example.com',
-    phone: '+1 (555) 123-4567',
-    address: '123 Main St, Springfield',
-    bloodGroup: 'O+',
-    emergencyContact: '+1 (555) 987-6543 (Father)'
+    name: '',
+    email: '',
+    phone: '',
+    gender: '',
+    hostel: ''
   })
-
   const [isLoading, setIsLoading] = useState(false)
 
-  const handleSave = (e) => {
+  useEffect(() => {
+    if (user) {
+      setProfile({
+        name: user.name,
+        email: user.email,
+        phone: user.phone || '',
+        gender: user.gender || '',
+        hostel: user.hostelId?.name || 'Not assigned'
+      })
+    }
+  }, [user])
+
+  const handleSave = async (e) => {
     e.preventDefault()
     setIsLoading(true)
-    setTimeout(() => {
+    try {
+      // TODO: Add API call to update profile
+      await new Promise(resolve => setTimeout(resolve, 1000)) // Simulate API call
+    } catch (error) {
+      console.error('Error updating profile:', error)
+    } finally {
       setIsLoading(false)
       setIsEditing(false)
-    }, 1000)
+    }
   }
 
   return (
@@ -48,7 +66,7 @@ export default function Profile() {
             <div>
                <h1 className="text-3xl font-heading font-bold">{profile.name}</h1>
                <div className="text-muted-foreground flex items-center gap-2 mt-1">
-                 <ShieldCheck className="w-4 h-4 text-emerald-500" /> Room 302, Block B (Verified)
+                 <ShieldCheck className="w-4 h-4 text-emerald-500" /> {profile.hostel} (Verified)
                </div>
             </div>
             
@@ -108,11 +126,11 @@ export default function Profile() {
                  </div>
 
                  <div className="space-y-2">
-                   <label className="text-sm font-medium text-muted-foreground">Blood Group</label>
+                   <label className="text-sm font-medium text-muted-foreground">Gender</label>
                    <input 
                      disabled={!isEditing}
-                     value={profile.bloodGroup}
-                     onChange={(e) => setProfile({...profile, bloodGroup: e.target.value})}
+                     value={profile.gender}
+                     onChange={(e) => setProfile({...profile, gender: e.target.value})}
                      className="w-full px-4 py-3 rounded-xl border border-input bg-background/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium disabled:opacity-70 disabled:bg-slate-50 dark:disabled:bg-slate-900"
                    />
                  </div>
@@ -120,25 +138,22 @@ export default function Profile() {
 
               <div className="space-y-2 flex-1">
                  <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                   <MapPin className="w-4 h-4" /> Permanent Address
+                   <MapPin className="w-4 h-4" /> Hostel
                  </label>
-                 <textarea 
-                   disabled={!isEditing}
-                   value={profile.address}
-                   onChange={(e) => setProfile({...profile, address: e.target.value})}
-                   rows={2}
-                   className="w-full px-4 py-3 rounded-xl border border-input bg-background/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium resize-none disabled:opacity-70 disabled:bg-slate-50 dark:disabled:bg-slate-900"
+                 <input 
+                   disabled
+                   value={profile.hostel}
+                   className="w-full px-4 py-3 rounded-xl border border-input bg-background/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium disabled:opacity-70 disabled:bg-slate-50 dark:disabled:bg-slate-900"
                  />
               </div>
 
               <div className="space-y-2 flex-1">
                  <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                   <Phone className="w-4 h-4 text-rose-500" /> Emergency Contact
+                   <Phone className="w-4 h-4 text-rose-500" /> Joined Date
                  </label>
                  <input 
-                   disabled={!isEditing}
-                   value={profile.emergencyContact}
-                   onChange={(e) => setProfile({...profile, emergencyContact: e.target.value})}
+                   disabled
+                   value={user ? new Date(user.createdAt).toLocaleDateString() : ''}
                    className="w-full px-4 py-3 rounded-xl border border-input bg-background/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-medium disabled:opacity-70 disabled:bg-slate-50 dark:disabled:bg-slate-900"
                  />
               </div>
@@ -163,15 +178,15 @@ export default function Profile() {
               <div className="space-y-4">
                  <div className="flex justify-between items-center py-2 border-b border-border/50">
                     <span className="text-muted-foreground text-sm">Tenant ID</span>
-                    <span className="font-mono font-medium">ST-2026-9042</span>
+                    <span className="font-mono font-medium">{user ? user._id.slice(-6).toUpperCase() : ''}</span>
                  </div>
                  <div className="flex justify-between items-center py-2 border-b border-border/50">
                     <span className="text-muted-foreground text-sm">Joined Date</span>
-                    <span className="font-medium">12 Aug 2025</span>
+                    <span className="font-medium">{user ? new Date(user.createdAt).toLocaleDateString() : ''}</span>
                  </div>
                  <div className="flex justify-between items-center py-2">
-                    <span className="text-muted-foreground text-sm">KYC Verifed</span>
-                    <div className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-xs font-bold">YES</div>
+                    <span className="text-muted-foreground text-sm">Role</span>
+                    <div className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-xs font-bold">{user ? user.role : ''}</div>
                  </div>
               </div>
            </div>

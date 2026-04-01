@@ -1,24 +1,56 @@
-import { useState } from 'react'
+import { useState, useContext } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Building2, ArrowRight, ArrowLeft, Building, User, Phone, Mail } from 'lucide-react'
+import { Building2, ArrowRight, ArrowLeft, User, AlertCircle } from 'lucide-react'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { AuthContext } from '@/context/AuthContext'
 
 export default function Register() {
   const navigate = useNavigate()
+  const { register } = useContext(AuthContext)
   const [step, setStep] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
+  const [errorMsg, setErrorMsg] = useState('')
+  
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
+    phone: '',
+    gender: 'OTHER',
+  })
+
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value })
+  }
 
   const handleNext = () => setStep(s => Math.min(s + 1, 3))
   const handlePrev = () => setStep(s => Math.max(s - 1, 1))
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     setIsLoading(true)
-    setTimeout(() => {
-      // Mock account creation and login
+    setErrorMsg('')
+    
+    try {
+      const payload = {
+        name: `${formData.firstName} ${formData.lastName}`.trim(),
+        email: formData.email,
+        password: formData.password,
+        phone: formData.phone,
+        gender: formData.gender,
+        role: 'STUDENT'
+      }
+      
+      await register(payload)
       navigate('/student/dashboard')
-    }, 1200)
+    } catch (err) {
+      setErrorMsg(err)
+      setStep(1) // Return to first step to show error
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -40,6 +72,17 @@ export default function Register() {
             <p className="text-muted-foreground text-lg">Join us and experience seamless hostel living.</p>
           </div>
 
+          {errorMsg && (
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }} 
+              animate={{ opacity: 1, y: 0 }} 
+              className="mb-6 p-4 rounded-xl mx-auto max-w-lg bg-destructive/15 border border-destructive/30 flex items-start gap-3 text-destructive"
+            >
+              <AlertCircle className="w-5 h-5 mt-0.5 shrink-0" />
+              <p className="text-sm font-medium">{errorMsg}</p>
+            </motion.div>
+          )}
+
           <div className="glass-card shadow-2xl overflow-hidden relative border-t-[3px] border-t-primary">
             {/* Progress Bar */}
             <div className="h-1 bg-slate-100 dark:bg-slate-800 w-full absolute top-0 left-0">
@@ -55,76 +98,60 @@ export default function Register() {
                  <div className="font-medium text-sm text-primary uppercase tracking-wider">Step {step} of 3</div>
                  <div className="text-sm font-medium text-muted-foreground">
                    {step === 1 && "Personal Details"}
-                   {step === 2 && "Contact & Address"}
-                   {step === 3 && "Preferences & Documents"}
+                   {step === 2 && "Contact & Profile"}
+                   {step === 3 && "Preferences"}
                  </div>
                </div>
 
                <form onSubmit={step === 3 ? handleSubmit : (e) => { e.preventDefault(); handleNext(); }}>
-                 <AnimatePresence>
+                 <AnimatePresence mode="wait">
                    {step === 1 && (
-                     <motion.div 
-                       key="step1"
-                       initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
-                       className="space-y-6"
-                     >
+                     <motion.div key="step1" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
                        <div className="grid md:grid-cols-2 gap-6">
                          <div className="space-y-2">
                            <label className="text-sm font-medium">First Name</label>
-                           <input type="text" className="w-full px-4 py-3 rounded-xl border border-input bg-background/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all" required placeholder="John" />
+                           <input type="text" name="firstName" value={formData.firstName} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-input bg-background/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all" required placeholder="John" />
                          </div>
                          <div className="space-y-2">
                            <label className="text-sm font-medium">Last Name</label>
-                           <input type="text" className="w-full px-4 py-3 rounded-xl border border-input bg-background/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all" required placeholder="Doe" />
+                           <input type="text" name="lastName" value={formData.lastName} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-input bg-background/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all" required placeholder="Doe" />
                          </div>
                        </div>
                        
                        <div className="space-y-2">
                            <label className="text-sm font-medium">Email Address</label>
-                           <input type="email" className="w-full px-4 py-3 rounded-xl border border-input bg-background/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all" required placeholder="name@example.com" />
+                           <input type="email" name="email" value={formData.email} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-input bg-background/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all" required placeholder="name@example.com" />
                        </div>
 
                        <div className="space-y-2">
                            <label className="text-sm font-medium">Password</label>
-                           <input type="password" className="w-full px-4 py-3 rounded-xl border border-input bg-background/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all" required placeholder="Create a secure password" />
+                           <input type="password" name="password" value={formData.password} onChange={handleChange} minLength="8" className="w-full px-4 py-3 rounded-xl border border-input bg-background/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all" required placeholder="8+ characters" />
                        </div>
                      </motion.div>
                    )}
 
                    {step === 2 && (
-                     <motion.div 
-                       key="step2"
-                       initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
-                       className="space-y-6"
-                     >
+                     <motion.div key="step2" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
                         <div className="space-y-2">
                            <label className="text-sm font-medium">Phone Number</label>
-                           <input type="tel" className="w-full px-4 py-3 rounded-xl border border-input bg-background/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all" required placeholder="+1 (555) 000-0000" />
+                           <input type="tel" name="phone" value={formData.phone} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-input bg-background/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all" required placeholder="+1 (555) 000-0000" />
                        </div>
 
-                       <div className="space-y-2">
-                           <label className="text-sm font-medium">Emergency Contact</label>
-                           <div className="grid md:grid-cols-2 gap-4">
-                              <input type="text" className="w-full px-4 py-3 rounded-xl border border-input bg-background/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all" required placeholder="Relation (e.g., Father)" />
-                              <input type="tel" className="w-full px-4 py-3 rounded-xl border border-input bg-background/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all" required placeholder="Phone Number" />
-                           </div>
-                       </div>
-
-                       <div className="space-y-2">
-                           <label className="text-sm font-medium">Residential Address</label>
-                           <textarea rows={3} className="w-full px-4 py-3 rounded-xl border border-input bg-background/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all resize-none" required placeholder="Your permanent address" />
-                       </div>
+                        <div className="space-y-2">
+                           <label className="text-sm font-medium">Gender</label>
+                           <select name="gender" value={formData.gender} onChange={handleChange} className="w-full px-4 py-3 rounded-xl border border-input bg-background/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all" required>
+                             <option value="MALE">Male</option>
+                             <option value="FEMALE">Female</option>
+                             <option value="OTHER">Other</option>
+                           </select>
+                        </div>
                      </motion.div>
                    )}
 
                    {step === 3 && (
-                     <motion.div 
-                       key="step3"
-                       initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
-                       className="space-y-6"
-                     >
+                     <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-6">
                        <div className="space-y-4">
-                         <label className="text-sm font-medium">Room Type Preference</label>
+                         <label className="text-sm font-medium">Room Type Preference (Optional)</label>
                          <div className="grid grid-cols-2 gap-4">
                            <label className="relative flex cursor-pointer rounded-xl border border-input bg-background/50 p-4 hover:bg-slate-50 dark:hover:bg-slate-900 focus-within:ring-2 focus-within:ring-primary">
                              <input type="radio" name="roomType" className="sr-only" defaultChecked />
@@ -136,22 +163,12 @@ export default function Register() {
                            <label className="relative flex cursor-pointer rounded-xl border border-input bg-background/50 p-4 hover:bg-slate-50 dark:hover:bg-slate-900 focus-within:ring-2 focus-within:ring-primary">
                              <input type="radio" name="roomType" className="sr-only" />
                              <span className="flex flex-col">
-                               <span className="block text-sm font-medium">Shared (2-Bed)</span>
+                               <span className="block text-sm font-medium">Shared</span>
                                <span className="block text-sm text-muted-foreground mt-1">Cost effective</span>
                              </span>
                            </label>
                          </div>
                        </div>
-
-                       <div className="space-y-2">
-                           <label className="text-sm font-medium">ID Proof Upload (Optional Mock)</label>
-                           <div className="border-2 border-dashed border-input rounded-xl p-6 flex flex-col items-center justify-center text-center bg-background/20 hover:bg-background/50 transition-colors cursor-pointer">
-                             <User className="w-8 h-8 text-muted-foreground mb-2" />
-                             <div className="text-sm font-medium">Click to upload</div>
-                             <div className="text-xs text-muted-foreground mt-1">PDF, JPG, PNG up to 5MB</div>
-                           </div>
-                       </div>
-
                      </motion.div>
                    )}
                  </AnimatePresence>

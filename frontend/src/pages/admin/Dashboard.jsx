@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Users, Building, DollarSign, Activity } from 'lucide-react'
+import api from '@/lib/api'
 import {
   Area,
   AreaChart,
@@ -19,12 +21,6 @@ const revenueData = [
   { month: "May", revenue: 1890 },
   { month: "Jun", revenue: 2390 },
   { month: "Jul", revenue: 3490 },
-]
-
-const occupancyData = [
-  { name: "Block A", assigned: 120, total: 150 },
-  { name: "Block B", assigned: 140, total: 150 },
-  { name: "Block C", assigned: 80, total: 100 },
 ]
 
 function StatCard({ title, value, subtext, icon, trend }) {
@@ -47,13 +43,53 @@ function StatCard({ title, value, subtext, icon, trend }) {
 }
 
 export default function AdminDashboard() {
+  const [hostels, setHostels] = useState([])
+  const [rooms, setRooms] = useState([])
+  const [users, setUsers] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Note: Assuming we add endpoints for admin to get all data
+        // For now, using existing endpoints
+        const [hostelsRes, roomsRes] = await Promise.all([
+          api.get('/hostels'), // Need to add this endpoint
+          api.get('/rooms')
+        ])
+        
+        setHostels(hostelsRes.data.data.hostels || [])
+        setRooms(roomsRes.data.data.rooms || [])
+      } catch (error) {
+        console.error('Error fetching data:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [])
+
+  if (loading) {
+    return <div className="flex justify-center items-center h-64">Loading...</div>
+  }
+
+  const totalCapacity = hostels.reduce((sum, h) => sum + h.totalCapacity, 0)
+  const totalOccupancy = hostels.reduce((sum, h) => sum + h.currentOccupancy, 0)
+  const occupancyRate = totalCapacity > 0 ? Math.round((totalOccupancy / totalCapacity) * 100) : 0
+
+  const occupancyData = hostels.map(h => ({
+    name: h.name,
+    assigned: h.currentOccupancy,
+    total: h.totalCapacity
+  }))
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Total Revenue" value="$45,231" subtext="+20.1% from last month" trend="up" icon={<DollarSign className="w-6 h-6" />} />
-        <StatCard title="Active Tenants" value="340" subtext="+12 new admissions" trend="up" icon={<Users className="w-6 h-6" />} />
-        <StatCard title="Total Rooms" value="400" subtext="85% occupancy rate" trend="up" icon={<Building className="w-6 h-6" />} />
-        <StatCard title="Open Complaints" value="12" subtext="-5% from yesterday" trend="down" icon={<Activity className="w-6 h-6" />} />
+        <StatCard title="Total Capacity" value={totalCapacity} subtext={occupancyRate + "% occupied"} trend="up" icon={<Building className="w-6 h-6" />} />
+        <StatCard title="Active Tenants" value={totalOccupancy} subtext={`${hostels.length} hostels`} trend="up" icon={<Users className="w-6 h-6" />} />
+        <StatCard title="Total Rooms" value={rooms.length} subtext={`${rooms.filter(r => r.status === 'AVAILABLE').length} available`} trend="up" icon={<Building className="w-6 h-6" />} />
+        <StatCard title="Hostels" value={hostels.length} subtext="Active facilities" trend="up" icon={<Activity className="w-6 h-6" />} />
       </div>
 
       <div className="grid lg:grid-cols-2 gap-8">
