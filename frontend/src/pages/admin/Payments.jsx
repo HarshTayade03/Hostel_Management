@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   flexRender,
   getCoreRowModel,
@@ -8,49 +8,58 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import { Search, ChevronDown, Download, IndianRupee, AlertCircle, FileText } from 'lucide-react'
-
-// Mock Data
-const data = [
-  { id: 'INV-001', student: 'Alex Johnson', type: 'Room Rent', amount: 15000, date: '2023-11-01', status: 'Paid', method: 'UPI' },
-  { id: 'INV-002', student: 'Maria Garcia', type: 'Room Rent', amount: 18000, date: '2023-11-03', status: 'Pending', method: 'Cards' },
-  { id: 'INV-003', student: 'James Smith', type: 'Mess Fee', amount: 4500, date: '2023-10-25', status: 'Overdue', method: 'Cash' },
-  { id: 'INV-004', student: 'William Brown', type: 'Security Deposit', amount: 10000, date: '2023-11-10', status: 'Paid', method: 'NetBanking' },
-  { id: 'INV-005', student: 'Emily Davis', type: 'Room Rent', amount: 15000, date: '2023-11-01', status: 'Paid', method: 'UPI' },
-  { id: 'INV-006', student: 'Michael Brown', type: 'Late Fee', amount: 500, date: '2023-10-15', status: 'Overdue', method: 'UPI' },
-]
+import api from '@/lib/api'
 
 export default function AdminPayments() {
+  const [data, setData] = useState([])
+  const [loading, setLoading] = useState(true)
   const [sorting, setSorting] = useState([])
   const [globalFilter, setGlobalFilter] = useState('')
 
+  useEffect(() => {
+    const fetchPayments = async () => {
+      try {
+        const res = await api.get('/payments/all')
+        setData(res.data.data.payments)
+      } catch (err) {
+        console.error(err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchPayments()
+  }, [])
+
   const columns = [
     {
-       accessorKey: 'id',
+       accessorKey: '_id',
        header: 'Invoice ID',
-       cell: info => <span className="font-mono text-xs font-semibold">{info.getValue()}</span>
+       cell: info => <span className="font-mono text-xs font-semibold">#{String(info.getValue()).slice(-6)}</span>
     },
     {
-       accessorKey: 'student',
+       accessorFn: row => row.studentId?.name || 'Unknown',
+       id: 'student',
        header: 'Student Name',
        cell: info => <span className="font-medium text-foreground">{info.getValue()}</span>
     },
     {
        accessorKey: 'type',
        header: 'Fee Type',
-       cell: info => <span className="text-muted-foreground">{info.getValue()}</span>
+       cell: info => <span className="text-muted-foreground">{String(info.getValue()).replace(/_/g,' ')}</span>
     },
     {
        accessorKey: 'amount',
        header: 'Amount',
        cell: info => (
           <span className="font-mono font-bold flex items-center">
-             <IndianRupee className="w-3 h-3 mr-0.5" />{info.getValue().toLocaleString()}
+             <IndianRupee className="w-3 h-3 mr-0.5" />{Number(info.getValue()).toLocaleString()}
           </span>
        )
     },
     {
-       accessorKey: 'date',
+       accessorKey: 'createdAt',
        header: 'Date',
+       cell: info => new Date(info.getValue()).toLocaleDateString()
     },
     {
        accessorKey: 'status',
@@ -59,8 +68,8 @@ export default function AdminPayments() {
           const status = info.getValue()
           return (
              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                status === 'Paid' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-500' : 
-                status === 'Pending' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-500' : 'bg-rose-500/10 text-rose-600 dark:text-rose-500'
+                status === 'SUCCESS' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-500' : 
+                status === 'PENDING' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-500' : 'bg-rose-500/10 text-rose-600 dark:text-rose-500'
              }`}>
                 {status}
              </span>
@@ -84,17 +93,16 @@ export default function AdminPayments() {
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    state: {
-      sorting,
-      globalFilter,
-    },
+    state: { sorting, globalFilter },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
   })
 
-  // Calculate totals
-  const totalCollected = data.filter(d => d.status === 'Paid').reduce((acc, curr) => acc + curr.amount, 0)
-  const totalPending = data.filter(d => d.status === 'Pending' || d.status === 'Overdue').reduce((acc, curr) => acc + curr.amount, 0)
+  // Calculate live totals
+  const totalCollected = data.filter(d => d.status === 'SUCCESS').reduce((acc, curr) => acc + curr.amount, 0)
+  const totalPending = data.filter(d => d.status === 'PENDING').reduce((acc, curr) => acc + curr.amount, 0)
+
+  if (loading) return <div className="flex justify-center items-center h-64 text-muted-foreground">Loading payment ledger...</div>
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">

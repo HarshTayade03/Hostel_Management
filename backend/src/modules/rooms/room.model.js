@@ -27,7 +27,7 @@ const roomSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['AVAILABLE', 'FULL', 'MAINTENANCE'],
+    enum: ['AVAILABLE', 'PARTIALLY_FULL', 'FULL', 'MAINTENANCE'],
     default: 'AVAILABLE',
     index: true,
   },
@@ -45,13 +45,15 @@ const roomSchema = new mongoose.Schema({
 roomSchema.index({ roomNumber: 1, hostelId: 1 }, { unique: true });
 
 // Pre-save hook to automatically update room status based on occupancy
-roomSchema.pre('save', function(next) {
+roomSchema.pre('save', function() {
+  if (this.status === 'MAINTENANCE') return; // Don't auto-change maintenance rooms
   if (this.occupancy >= this.capacity) {
     this.status = 'FULL';
-  } else if (this.status === 'FULL' && this.occupancy < this.capacity) {
+  } else if (this.occupancy > 0) {
+    this.status = 'PARTIALLY_FULL';
+  } else {
     this.status = 'AVAILABLE';
   }
-  next();
 });
 
 const Room = mongoose.model('Room', roomSchema);

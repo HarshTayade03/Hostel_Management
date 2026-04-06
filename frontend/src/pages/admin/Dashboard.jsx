@@ -46,20 +46,22 @@ export default function AdminDashboard() {
   const [hostels, setHostels] = useState([])
   const [rooms, setRooms] = useState([])
   const [users, setUsers] = useState([])
+  const [payments, setPayments] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Note: Assuming we add endpoints for admin to get all data
-        // For now, using existing endpoints
-        const [hostelsRes, roomsRes] = await Promise.all([
-          api.get('/hostels'), // Need to add this endpoint
-          api.get('/rooms')
+        const [hostelsRes, roomsRes, studentsRes, paymentsRes] = await Promise.all([
+          api.get('/hostels'),
+          api.get('/rooms'),
+          api.get('/users?role=STUDENT'),
+          api.get('/payments/all'),
         ])
-        
         setHostels(hostelsRes.data.data.hostels || [])
         setRooms(roomsRes.data.data.rooms || [])
+        setUsers(studentsRes.data.data.users || [])
+        setPayments(paymentsRes.data.data.payments || [])
       } catch (error) {
         console.error('Error fetching data:', error)
       } finally {
@@ -77,6 +79,8 @@ export default function AdminDashboard() {
   const totalCapacity = hostels.reduce((sum, h) => sum + h.totalCapacity, 0)
   const totalOccupancy = hostels.reduce((sum, h) => sum + h.currentOccupancy, 0)
   const occupancyRate = totalCapacity > 0 ? Math.round((totalOccupancy / totalCapacity) * 100) : 0
+  const totalRevenue = payments.filter(p => p.status === 'SUCCESS').reduce((sum, p) => sum + p.amount, 0)
+  const pendingDues = payments.filter(p => p.status === 'PENDING').reduce((sum, p) => sum + p.amount, 0)
 
   const occupancyData = hostels.map(h => ({
     name: h.name,
@@ -86,9 +90,9 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-8 max-w-6xl mx-auto">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Total Capacity" value={totalCapacity} subtext={occupancyRate + "% occupied"} trend="up" icon={<Building className="w-6 h-6" />} />
-        <StatCard title="Active Tenants" value={totalOccupancy} subtext={`${hostels.length} hostels`} trend="up" icon={<Users className="w-6 h-6" />} />
+        <StatCard title="Active Tenants" value={users.length} subtext={`${occupancyRate}% occupancy rate`} trend="up" icon={<Users className="w-6 h-6" />} />
         <StatCard title="Total Rooms" value={rooms.length} subtext={`${rooms.filter(r => r.status === 'AVAILABLE').length} available`} trend="up" icon={<Building className="w-6 h-6" />} />
+        <StatCard title="Revenue Collected" value={`₹${totalRevenue.toLocaleString()}`} subtext={`₹${pendingDues.toLocaleString()} pending`} trend="up" icon={<DollarSign className="w-6 h-6" />} />
         <StatCard title="Hostels" value={hostels.length} subtext="Active facilities" trend="up" icon={<Activity className="w-6 h-6" />} />
       </div>
 
@@ -97,7 +101,7 @@ export default function AdminDashboard() {
         {/* Revenue Chart */}
         <div className="glass-card p-6 md:p-8 rounded-3xl">
           <div className="mb-6">
-            <h3 className="text-lg font-heading font-semibold">Revenue Overview</h3>
+            <h3 className="text-lg font-heading font-semibold text-foreground">Revenue Overview</h3>
             <p className="text-sm text-muted-foreground">Monthly rent collections</p>
           </div>
           <div className="h-[300px] w-full mt-4">
@@ -109,8 +113,8 @@ export default function AdminDashboard() {
                     <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <XAxis dataKey="month" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
+                <XAxis dataKey="month" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+                <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />
                 <Tooltip 
                    contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '12px', border: '1px solid hsl(var(--border))' }}
                    itemStyle={{ color: 'hsl(var(--foreground))' }}
@@ -124,22 +128,28 @@ export default function AdminDashboard() {
         {/* Occupancy Chart */}
         <div className="glass-card p-6 md:p-8 rounded-3xl">
           <div className="mb-6">
-            <h3 className="text-lg font-heading font-semibold">Block Occupancy</h3>
-            <p className="text-sm text-muted-foreground">Assigned vs Total Beds</p>
+            <h3 className="text-lg font-heading font-semibold text-foreground">Block Occupancy</h3>
+            <p className="text-sm text-muted-foreground">Assigned vs Total Beds (Dynamically Loaded)</p>
           </div>
           <div className="h-[300px] w-full mt-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={occupancyData}>
-                <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                <Tooltip 
-                   cursor={{fill: 'transparent'}}
-                   contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '12px', border: '1px solid hsl(var(--border))' }}
-                />
-                <Bar dataKey="assigned" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="total" fill="hsl(var(--muted))" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {occupancyData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={occupancyData}>
+                  <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
+                  <Tooltip 
+                     cursor={{fill: 'var(--muted)'}}
+                     contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '12px', border: '1px solid hsl(var(--border))', color: 'hsl(var(--foreground))' }}
+                  />
+                  <Bar dataKey="assigned" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Assigned Beds" />
+                  <Bar dataKey="total" fill="hsl(var(--muted-foreground))" radius={[4, 4, 0, 0]} name="Total Capacity" />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+               <div className="w-full h-full flex items-center justify-center text-muted-foreground text-sm">
+                  No block occupancy data available
+               </div>
+            )}
           </div>
         </div>
 

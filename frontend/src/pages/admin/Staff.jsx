@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   flexRender,
   getCoreRowModel,
@@ -7,27 +7,64 @@ import {
   getFilteredRowModel,
   useReactTable,
 } from '@tanstack/react-table'
-import { Search, ChevronDown, MoreHorizontal, UserCheck, UserX, UserPlus } from 'lucide-react'
-
-// Mock Data
-const data = [
-  { id: 'ADM-101', name: 'Dr. Aisha Khan', role: 'Chief Warden', shift: '09:00 AM - 05:00 PM', status: 'Active', phone: '+1 555-0101' },
-  { id: 'STF-204', name: 'Marcus Chen', role: 'Security', shift: '06:00 PM - 06:00 AM', status: 'Active', phone: '+1 555-0204' },
-  { id: 'STF-205', name: 'Sarah Miller', role: 'Janitor', shift: '07:00 AM - 03:00 PM', status: 'Active', phone: '+1 555-0205' },
-  { id: 'STF-206', name: 'David Wilson', role: 'Maintenance', shift: '09:00 AM - 05:00 PM', status: 'On Leave', phone: '+1 555-0206' },
-  { id: 'STF-207', name: 'Emily Davis', role: 'Janitor', shift: '03:00 PM - 11:00 PM', status: 'Active', phone: '+1 555-0207' },
-  { id: 'STF-208', name: 'Michael Brown', role: 'Security', shift: '06:00 AM - 06:00 PM', status: 'Inactive', phone: '+1 555-0208' },
-]
+import { Search, ChevronDown, MoreHorizontal, UserCheck, UserX, UserPlus, Trash2, X } from 'lucide-react'
+import api from '@/lib/api'
 
 export default function AdminStaff() {
+  const [data, setData] = useState([])
   const [sorting, setSorting] = useState([])
   const [globalFilter, setGlobalFilter] = useState('')
 
+  // Add Staff Modal States
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [newStaff, setNewStaff] = useState({ name: '', role: 'Janitor', shift: '09:00 AM - 05:00 PM', phone: '', status: 'Active' })
+
+  const fetchStaff = async () => {
+     try {
+        const res = await api.get('/users?role=STAFF')
+        setData(res.data.data.users)
+     } catch (err) {
+        console.error('Failed to fetch staff', err)
+     }
+  }
+
+  useEffect(() => {
+     fetchStaff()
+  }, [])
+
+  const handleDelete = async (id) => {
+     try {
+        await api.delete(`/users/${id}`)
+        setData(data.filter(t => t._id !== id))
+     } catch (err) {
+        console.error('Failed to delete staff', err)
+     }
+  }
+
+  const handleAddStaff = async (e) => {
+     e.preventDefault()
+     if(!newStaff.name || !newStaff.phone) return
+     
+     try {
+       const res = await api.post('/users', {
+         name: newStaff.name,
+         role: 'STAFF', // Actually enforce this backend side or here
+         phone: newStaff.phone
+         // Mock additional details in real life we would save shift/role internally perhaps as metadata
+       })
+       setData([{ ...res.data.data.user, ...newStaff }, ...data])
+       setNewStaff({ name: '', role: 'Janitor', shift: '09:00 AM - 05:00 PM', phone: '', status: 'Active' })
+       setIsModalOpen(false)
+     } catch (err) {
+       console.error('Failed to add staff', err)
+     }
+  }
+
   const columns = [
     {
-       accessorKey: 'id',
+       accessorKey: '_id',
        header: 'Employee ID',
-       cell: info => <span className="font-mono text-xs font-semibold">{info.getValue()}</span>
+       cell: info => <span className="font-mono text-xs font-semibold">{(info.getValue() || '').substring(0,8)}</span>
     },
     {
        accessorKey: 'name',
@@ -69,10 +106,15 @@ export default function AdminStaff() {
     },
     {
        id: 'actions',
-       cell: () => (
-          <button className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-muted-foreground transition-colors group">
-             <MoreHorizontal className="w-4 h-4 group-hover:text-primary" />
-          </button>
+       cell: (info) => (
+          <div className="flex items-center justify-end gap-2 pr-4 relative group">
+             <button onClick={() => handleDelete(info.row.original._id)} className="p-2 text-rose-500 bg-rose-500/10 hover:bg-rose-500 hover:text-white rounded-lg transition-colors opacity-0 group-hover:opacity-100" title="Remove Staff">
+                <Trash2 className="w-4 h-4" />
+             </button>
+             <button className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-muted-foreground transition-colors group">
+                <MoreHorizontal className="w-4 h-4 group-hover:text-primary" />
+             </button>
+          </div>
        )
     }
   ]
@@ -93,7 +135,51 @@ export default function AdminStaff() {
   })
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6 relative">
+      
+      {/* Modal for adding staff */}
+      {isModalOpen && (
+         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+            <div className="bg-card w-full max-w-md p-6 rounded-3xl shadow-xl border border-border relative">
+               <button onClick={() => setIsModalOpen(false)} className="absolute top-4 right-4 p-2 text-muted-foreground hover:bg-muted rounded-full">
+                  <X className="w-5 h-5" />
+               </button>
+               <h3 className="text-xl font-bold font-heading mb-6 text-foreground">Add New Staff</h3>
+               <form onSubmit={handleAddStaff} className="space-y-4">
+                  <div className="space-y-2">
+                     <label className="text-xs font-bold uppercase text-muted-foreground">Full Name</label>
+                     <input value={newStaff.name} onChange={e => setNewStaff({...newStaff, name: e.target.value})} className="w-full bg-background border border-input rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary/50 text-foreground" required />
+                  </div>
+                  <div className="flex gap-4">
+                     <div className="space-y-2 w-1/2">
+                        <label className="text-xs font-bold uppercase text-muted-foreground">Role</label>
+                        <select value={newStaff.role} onChange={e => setNewStaff({...newStaff, role: e.target.value})} className="w-full bg-background border border-input rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary/50 text-foreground cursor-pointer">
+                           <option>Chief Warden</option>
+                           <option>Security</option>
+                           <option>Janitor</option>
+                           <option>Maintenance</option>
+                        </select>
+                     </div>
+                     <div className="space-y-2 w-1/2">
+                        <label className="text-xs font-bold uppercase text-muted-foreground">Phone</label>
+                        <input value={newStaff.phone} onChange={e => setNewStaff({...newStaff, phone: e.target.value})} placeholder="+1 555-0000" className="w-full bg-background border border-input rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary/50 text-foreground" required />
+                     </div>
+                  </div>
+                  <div className="space-y-2">
+                     <label className="text-xs font-bold uppercase text-muted-foreground">Shift Timing</label>
+                     <select value={newStaff.shift} onChange={e => setNewStaff({...newStaff, shift: e.target.value})} className="w-full bg-background border border-input rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-primary/50 text-foreground cursor-pointer">
+                        <option>09:00 AM - 05:00 PM</option>
+                        <option>06:00 AM - 06:00 PM</option>
+                        <option>06:00 PM - 06:00 AM</option>
+                        <option>03:00 PM - 11:00 PM</option>
+                     </select>
+                  </div>
+                  <button type="submit" className="w-full py-3 bg-primary text-primary-foreground font-bold rounded-xl mt-4 hover:opacity-90">Verify & Add Staff</button>
+               </form>
+            </div>
+         </div>
+      )}
+
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
          <div>
             <h2 className="text-2xl font-heading font-bold mb-1">Staff Management</h2>
@@ -110,7 +196,7 @@ export default function AdminStaff() {
                   className="pl-9 pr-4 py-2 w-full rounded-full border border-input bg-background/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm transition-all shadow-sm"
                />
             </div>
-            <button className="h-10 px-6 py-2 rounded-full bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 shadow-[0_0_20px_rgba(249,115,22,0.3)] transition-all shrink-0 flex items-center gap-2">
+            <button onClick={() => setIsModalOpen(true)} className="h-10 px-6 py-2 rounded-full bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 shadow-[0_0_20px_rgba(249,115,22,0.3)] transition-all shrink-0 flex items-center gap-2">
                <UserPlus className="w-4 h-4" /> Add Staff
             </button>
          </div>

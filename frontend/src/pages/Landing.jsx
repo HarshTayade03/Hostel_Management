@@ -39,14 +39,14 @@ const features = [
 const pricing = [
   {
     name: "Starter",
-    price: "$29",
+    price: "₹1,999",
     period: "/mo",
     features: ["Up to 50 beds", "Basic room management", "Leave application form", "Email support"],
     popular: false
   },
   {
     name: "Pro",
-    price: "$99",
+    price: "₹4,999",
     period: "/mo",
     features: ["Up to 250 beds", "Advanced analytics", "Complaint tracking dashboard", "Payment summaries", "Priority 24/7 support"],
     popular: true

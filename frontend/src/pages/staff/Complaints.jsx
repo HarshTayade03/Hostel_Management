@@ -1,26 +1,45 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, Filter, MessageSquare, CheckCircle2, Clock, AlertTriangle } from 'lucide-react'
-
-const mockComplaints = [
-  { id: 'TKT-1042', student: 'Alex Johnson', room: 'A-101', category: 'Maintenance', priority: 'High', status: 'Pending', desc: 'Leaking sink in the bathroom causing water pool', time: '2 hours ago' },
-  { id: 'TKT-1043', student: 'Maria Garcia', room: 'B-205', category: 'Cleaning', priority: 'Medium', status: 'In Progress', desc: 'Corridor outside my room needs deep cleaning', time: '5 hours ago' },
-  { id: 'TKT-1044', student: 'James Smith', room: 'A-102', category: 'Noise', priority: 'Low', status: 'Resolved', desc: 'Loud music from A-103 during study hours', time: 'Yesterday' },
-  { id: 'TKT-1045', student: 'William Brown', room: 'C-305', category: 'Maintenance', priority: 'High', status: 'Pending', desc: 'Air conditioning not cooling properly', time: 'Just now' },
-]
+import api from '@/lib/api'
 
 export default function StaffComplaints() {
-  const [complaints, setComplaints] = useState(mockComplaints)
+  const [complaints, setComplaints] = useState([])
   const [filter, setFilter] = useState('All')
   const [searchQuery, setSearchQuery] = useState('')
 
-  const handleStatusChange = (id, newStatus) => {
-    setComplaints(prev => prev.map(c => c.id === id ? { ...c, status: newStatus } : c))
+  const fetchComplaints = async () => {
+     try {
+        const { data } = await api.get('/complaints')
+        setComplaints(data.data.complaints)
+     } catch (err) {
+        console.error('Error fetching complaints:', err)
+     }
+  }
+
+  useEffect(() => {
+     fetchComplaints()
+  }, [])
+
+  const handleStatusChange = async (id, newStatus) => {
+    try {
+      await api.patch(`/complaints/${id}`, { status: newStatus.toUpperCase() })
+      setComplaints(prev => prev.map(c => c._id === id ? { ...c, status: newStatus.toUpperCase() } : c))
+    } catch(err) {
+      console.error('Error updating status:', err)
+    }
   }
 
   const filtered = complaints.filter(c => {
-    const matchesFilter = filter === 'All' || c.status === filter
-    const matchesSearch = c.student.toLowerCase().includes(searchQuery.toLowerCase()) || c.id.toLowerCase().includes(searchQuery.toLowerCase())
+    // Normalise status mapping (DB stores uppercase typically)
+    const normalizedStatus = c.status === 'IN_PROGRESS' ? 'In Progress' : c.status === 'RESOLVED' ? 'Resolved' : 'Pending'
+    const matchesFilter = filter === 'All' || normalizedStatus === filter
+    
+    // Safely retrieve properties for searching
+    const studentName = typeof c.student === 'object' ? (c.student?.name || '') : String(c.student || '')
+    const idVal = c._id || ''
+    
+    const matchesSearch = studentName.toLowerCase().includes(searchQuery.toLowerCase()) || idVal.toLowerCase().includes(searchQuery.toLowerCase())
     return matchesFilter && matchesSearch
   })
 
@@ -58,69 +77,71 @@ export default function StaffComplaints() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
          <AnimatePresence>
-            {filtered.map(ticket => (
+             {filtered.map(ticket => {
+               // Normalize for frontend
+               const tStatus = ticket.status === 'IN_PROGRESS' ? 'In Progress' : ticket.status === 'RESOLVED' ? 'Resolved' : 'Pending';
+               const tId = ticket._id || '';
+               
+               return (
               <motion.div 
-                 key={ticket.id}
+                 key={ticket._id}
                  layout
                  initial={{ opacity: 0, scale: 0.95 }}
                  animate={{ opacity: 1, scale: 1 }}
                  exit={{ opacity: 0, scale: 0.9 }}
                  className={`glass-card flex flex-col p-6 rounded-3xl transition-all border-l-4 ${
-                   ticket.priority === 'High' ? 'border-l-rose-500' :
-                   ticket.priority === 'Medium' ? 'border-l-amber-500' :
+                   ticket.category === 'MAINTENANCE' ? 'border-l-rose-500' :
+                   ticket.category === 'CLEANING' ? 'border-l-amber-500' :
                    'border-l-emerald-500'
                  }`}
               >
                  <div className="flex justify-between items-start mb-4">
-                    <span className="text-xs font-mono font-bold text-muted-foreground">{ticket.id}</span>
+                    <span className="text-xs font-mono font-bold text-muted-foreground">{tId.substring(0,8)}</span>
                     <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                       ticket.status === 'Resolved' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-500' :
-                       ticket.status === 'In Progress' ? 'bg-primary/10 text-primary' :
+                       tStatus === 'Resolved' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-500' :
+                       tStatus === 'In Progress' ? 'bg-primary/10 text-primary' :
                        'bg-rose-500/10 text-rose-600 dark:text-rose-500'
                     }`}>
-                       {ticket.status}
+                       {tStatus}
                     </span>
                  </div>
 
                  <div className="mb-4 flex-1">
                     <div className="flex items-center gap-2 mb-2">
                        <span className="text-[10px] font-bold uppercase bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-foreground">{ticket.category}</span>
-                       <span className="text-[10px] font-bold uppercase text-muted-foreground flex items-center gap-1">
-                          <AlertTriangle className="w-3 h-3" /> {ticket.priority}
-                       </span>
                     </div>
-                    <p className="font-medium text-sm leading-relaxed text-foreground">{ticket.desc}</p>
+                    <p className="font-medium text-sm leading-relaxed text-foreground">{ticket.description || ticket.desc}</p>
                  </div>
 
                  <div className="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl mb-4 text-xs flex justify-between items-center text-muted-foreground">
-                    <div className="font-medium text-foreground">{ticket.student}</div>
-                    <div className="font-mono">{ticket.room}</div>
+                    <div className="font-medium text-foreground">{ticket.studentId?.name || ticket.student}</div>
+                    <div className="font-mono">{ticket.studentId?.roomNumber || ticket.room}</div>
                  </div>
 
                  <div className="flex items-center justify-between pt-4 border-t border-border/50">
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
-                       <Clock className="w-3 h-3" /> {ticket.time}
+                       <Clock className="w-3 h-3" /> {new Date(ticket.createdAt || ticket.time).toLocaleDateString()}
                     </span>
                     
-                    {ticket.status !== 'Resolved' && (
+                    {tStatus !== 'Resolved' && (
                        <select 
                          className="text-xs bg-background border border-border rounded-lg px-2 py-1 font-medium text-primary hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors focus:outline-none focus:ring-1 focus:ring-primary/50 cursor-pointer"
-                         value={ticket.status}
-                         onChange={(e) => handleStatusChange(ticket.id, e.target.value)}
+                         value={tStatus}
+                         onChange={(e) => handleStatusChange(ticket._id, e.target.value)}
                        >
                          <option value="Pending">Pending</option>
                          <option value="In Progress">In Progress</option>
                          <option value="Resolved">Resolved</option>
                        </select>
                     )}
-                    {ticket.status === 'Resolved' && (
+                    {tStatus === 'Resolved' && (
                        <div className="text-xs font-bold text-emerald-500 flex items-center gap-1 bg-emerald-500/10 px-2 py-1 rounded-lg">
                           <CheckCircle2 className="w-3 h-3" /> Closed
                        </div>
                     )}
                  </div>
               </motion.div>
-            ))}
+            )})}
          </AnimatePresence>
       </div>
 

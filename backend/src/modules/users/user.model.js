@@ -38,6 +38,9 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.ObjectId,
     ref: 'Hostel',
   },
+  avatar: {
+    type: String,
+  },
   isActive: {
     type: Boolean,
     default: true,

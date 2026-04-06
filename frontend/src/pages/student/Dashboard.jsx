@@ -2,6 +2,7 @@ import { useState, useEffect, useContext } from 'react'
 import { motion } from 'framer-motion'
 import { CreditCard, Megaphone, Home, CheckCircle2 } from 'lucide-react'
 import { AuthContext } from '@/context/AuthContext'
+import { useNavigate } from 'react-router-dom'
 import api from '@/lib/api'
 
 // Basic custom card layout for clean aesthetics
@@ -28,6 +29,7 @@ function GlassWidget({ title, value, subtext, icon, gradient }) {
 
 export default function StudentDashboard() {
   const { user } = useContext(AuthContext)
+  const navigate = useNavigate()
   const [room, setRoom] = useState(null)
   const [payments, setPayments] = useState([])
   const [complaints, setComplaints] = useState([])
@@ -67,7 +69,7 @@ export default function StudentDashboard() {
   const activities = [
     ...payments.slice(0, 2).map(p => ({
       time: new Date(p.createdAt).toLocaleDateString(),
-      desc: `Payment ${p.status.toLowerCase()}: $${p.amount}`,
+      desc: `Payment ${p.status.toLowerCase()}: ₹${p.amount}`,
       status: p.status === 'SUCCESS' ? 'primary' : 'amber'
     })),
     ...complaints.slice(0, 1).map(c => ({
@@ -83,7 +85,7 @@ export default function StudentDashboard() {
         <GlassWidget 
            title="Next Due Date" 
            value={pendingPayments.length > 0 ? new Date(pendingPayments[0].createdAt).toLocaleDateString() : "No dues"} 
-           subtext={totalPending > 0 ? `$${totalPending} Pending` : "All paid"} 
+           subtext={totalPending > 0 ? `₹${totalPending} Pending` : "All paid"} 
            icon={<CreditCard className="w-8 h-8 text-rose-500" />} 
            gradient="border-t-rose-500/50"
         />
@@ -139,13 +141,13 @@ export default function StudentDashboard() {
             <p className="text-sm text-muted-foreground mb-6">Need something? Jump right to it.</p>
             
             <div className="space-y-3">
-               <button className="w-full text-left px-4 py-3 rounded-xl bg-background border border-border hover:border-primary/50 hover:shadow-lg transition-all font-medium text-sm">
+               <button onClick={() => navigate('/student/leave')} className="w-full text-left px-4 py-3 rounded-xl bg-background border border-border hover:border-primary/50 hover:shadow-lg transition-all font-medium text-sm">
                  Apply for Leave / Outpass
                </button>
-               <button className="w-full text-left px-4 py-3 rounded-xl bg-background border border-border hover:border-primary/50 hover:shadow-lg transition-all font-medium text-sm">
+               <button onClick={() => navigate('/student/complaints')} className="w-full text-left px-4 py-3 rounded-xl bg-background border border-border hover:border-primary/50 hover:shadow-lg transition-all font-medium text-sm">
                  Raise new complaint
                </button>
-               <button className="w-full text-left px-4 py-3 rounded-xl bg-background border border-border hover:border-primary/50 hover:shadow-lg transition-all font-medium text-sm">
+               <button onClick={() => navigate('/student/fees')} className="w-full text-left px-4 py-3 rounded-xl bg-background border border-border hover:border-primary/50 hover:shadow-lg transition-all font-medium text-sm">
                  Pay outstanding fees
                </button>
             </div>

@@ -83,3 +83,15 @@ exports.getMyTransactions = catchAsync(async (req, res, next) => {
     }
   });
 });
+
+exports.getAllPayments = catchAsync(async (req, res, next) => {
+  const payments = await Payment.find()
+    .sort({ createdAt: -1 })
+    .populate('studentId', 'name email gender hostelId');
+
+  res.status(200).json({
+    status: 'success',
+    results: payments.length,
+    data: { payments }
+  });
+});

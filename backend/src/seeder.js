@@ -78,71 +78,120 @@ const importData = async () => {
     await Room.insertMany([...boysRooms, ...girlsRooms]);
     console.log('Rooms created');
 
-    // Create Users
+    // Base Core Users
     const users = [
-      {
-        name: 'Admin User',
-        email: 'admin@example.com',
-        password: 'admin123',
-        role: 'ADMIN',
-        phone: '1234567890',
-        gender: 'MALE',
-        isActive: true,
-      },
-      {
-        name: 'Staff User',
-        email: 'staff@example.com',
-        password: 'staff123',
-        role: 'STAFF',
-        phone: '1234567891',
-        gender: 'FEMALE',
-        isActive: true,
-      },
-      {
-        name: 'John Doe',
-        email: 'student@example.com',
-        password: 'student123',
-        role: 'STUDENT',
-        phone: '1234567892',
-        gender: 'MALE',
-        hostelId: hostels[0]._id,
-        isActive: true,
-      },
-      {
-        name: 'Jane Smith',
-        email: 'student2@example.com',
-        password: 'student123',
-        role: 'STUDENT',
-        phone: '1234567893',
-        gender: 'FEMALE',
-        hostelId: hostels[1]._id,
-        isActive: true,
-      },
+      { name: 'Admin Rajesh', email: 'admin@example.com', password: 'admin123', role: 'ADMIN', phone: '9876543210', gender: 'MALE', isActive: true },
+      { name: 'Supriya Warden', email: 'staff@example.com', password: 'staff123', role: 'STAFF', phone: '9876543211', gender: 'FEMALE', isActive: true },
+      { name: 'Arjun Sharma', email: 'student@example.com', password: 'student123', role: 'STUDENT', phone: '9876543212', gender: 'MALE', hostelId: hostels[0]._id, isActive: true },
+      { name: 'Priya Patel', email: 'student2@example.com', password: 'student123', role: 'STUDENT', phone: '9876543213', gender: 'FEMALE', hostelId: hostels[1]._id, isActive: true },
     ];
 
-    await User.create(users);
-    console.log('Users created');
+    const firstNamesM = ['Aarav', 'Rohan', 'Vikram', 'Arjun', 'Karan', 'Rahul', 'Amit', 'Suresh', 'Ravi', 'Manish', 'Deepak', 'Nikhil', 'Siddharth', 'Vivek', 'Aditya'];
+    const firstNamesF = ['Priya', 'Ananya', 'Divya', 'Pooja', 'Sneha', 'Kavya', 'Meera', 'Isha', 'Shreya', 'Nisha', 'Riya', 'Anjali', 'Swati', 'Neha', 'Komal'];
+    const lastNames = ['Sharma', 'Patel', 'Singh', 'Verma', 'Gupta', 'Kumar', 'Joshi', 'Mehta', 'Shah', 'Yadav', 'Mishra', 'Chauhan', 'Tiwari', 'Pandey', 'Nair'];
 
-    // Assign some students to rooms
-    const student1 = await User.findOne({ email: 'student@example.com' });
-    const student2 = await User.findOne({ email: 'student2@example.com' });
+    const getRandomElement = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
-    const room1 = await Room.findOne({ hostelId: hostels[0]._id, roomNumber: '101' });
-    const room2 = await Room.findOne({ hostelId: hostels[1]._id, roomNumber: '101' });
+    // Generate 10 Staff Members
+    for (let i = 0; i < 10; i++) {
+      const isMale = Math.random() > 0.5;
+      const fn = isMale ? getRandomElement(firstNamesM) : getRandomElement(firstNamesF);
+      const ln = getRandomElement(lastNames);
+      users.push({
+        name: `${fn} ${ln}`,
+        email: `staff${i+3}@example.com`,
+        password: 'password123',
+        role: 'STAFF',
+        phone: `99988877${i.toString().padStart(2, '0')}`,
+        gender: isMale ? 'MALE' : 'FEMALE',
+        isActive: true
+      });
+    }
 
-    room1.occupants.push(student1._id);
-    room1.occupancy = 1;
-    await room1.save();
+    // Generate 50 Students
+    for (let i = 0; i < 50; i++) {
+      const isMale = Math.random() > 0.5;
+      const fn = isMale ? getRandomElement(firstNamesM) : getRandomElement(firstNamesF);
+      const ln = getRandomElement(lastNames);
+      users.push({
+        name: `${fn} ${ln}`,
+        email: `student_demo${i+1}@example.com`,
+        password: 'password123',
+        role: 'STUDENT',
+        phone: `77788899${i.toString().padStart(2, '0')}`,
+        gender: isMale ? 'MALE' : 'FEMALE',
+        hostelId: isMale ? hostels[0]._id : hostels[1]._id,
+        isActive: true
+      });
+    }
 
-    room2.occupants.push(student2._id);
-    room2.occupancy = 1;
-    await room2.save();
+    const createdUsers = await User.create(users);
+    console.log(`Created ${createdUsers.length} Users (Admin, 11 Staff, 52 Students)`);
+
+    // Assign Students to Rooms Dynamically
+    const studentUsers = await User.find({ role: 'STUDENT' });
+    let unassignedMale = studentUsers.filter(u => u.gender === 'MALE');
+    let unassignedFemale = studentUsers.filter(u => u.gender === 'FEMALE');
+
+    const rooms = await Room.find();
+    let maleOccupancy = 0;
+    let femaleOccupancy = 0;
+    let paymentsToCreate = [];
+    let complaintsToCreate = [];
+
+    // Types of complaints
+    const complaintTypes = ['MAINTENANCE', 'CLEANING', 'FOOD', 'SECURITY', 'OTHER'];
+
+    for (let room of rooms) {
+      if (room.status !== 'AVAILABLE') continue;
+      
+      const isBoysRoom = room.hostelId.toString() === hostels[0]._id.toString();
+      let targetPool = isBoysRoom ? unassignedMale : unassignedFemale;
+      
+      while (room.occupancy < room.capacity && targetPool.length > 0) {
+        const student = targetPool.pop();
+        room.occupants.push(student._id);
+        room.occupancy += 1;
+        // status is auto-computed by pre-save hook
+
+        if (isBoysRoom) maleOccupancy++;
+        else femaleOccupancy++;
+
+        // Add 1 random payment ledger per student
+        paymentsToCreate.push({
+           studentId: student._id,
+           amount: 450,
+           type: 'HOSTEL_FEE',
+           status: Math.random() > 0.3 ? 'SUCCESS' : 'PENDING'
+        });
+
+        // 30% chance for student to have a complaint
+        if (Math.random() > 0.7) {
+           complaintsToCreate.push({
+             studentId: student._id,
+             title: `Issue in Room ${room.roomNumber}`,
+             description: 'Reporting a generic issue for demo purposes in my room.',
+             category: getRandomElement(complaintTypes),
+             status: getRandomElement(['OPEN', 'IN_PROGRESS', 'RESOLVED']),
+             hostelId: room.hostelId,
+           });
+        }
+      }
+      await room.save();
+    }
 
     // Update hostel occupancy
-    hostels[0].currentOccupancy = 1;
-    hostels[1].currentOccupancy = 1;
+    hostels[0].currentOccupancy = maleOccupancy;
+    hostels[1].currentOccupancy = femaleOccupancy;
     await hostels[0].save();
     await hostels[1].save();
+
+    console.log(`Rooms Assinged - Boys Occupancy: ${maleOccupancy}, Girls Occupancy: ${femaleOccupancy}`);
+
+    if (paymentsToCreate.length > 0) await Payment.insertMany(paymentsToCreate);
+    if (complaintsToCreate.length > 0) await Complaint.insertMany(complaintsToCreate);
+    
+    console.log(`Created ${paymentsToCreate.length} Payments and ${complaintsToCreate.length} Complaints`);
 
     console.log('Data imported successfully');
     process.exit();
@@ -168,8 +217,10 @@ const destroyData = async () => {
   }
 };
 
-if (process.argv[2] === '-d') {
-  destroyData();
-} else {
-  importData();
-}
+connectDB().then(() => {
+  if (process.argv[2] === '-d') {
+    destroyData();
+  } else {
+    importData();
+  }
+});

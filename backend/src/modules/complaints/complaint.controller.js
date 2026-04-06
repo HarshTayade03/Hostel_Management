@@ -37,7 +37,8 @@ exports.getAllComplaints = catchAsync(async (req, res, next) => {
   if (req.user.role === 'STUDENT') {
     filter.studentId = req.user._id; // Student sees only their complaints
   } else if (req.user.role === 'STAFF') {
-    filter.assignedTo = req.user._id; // Optional: Or allow them to see their hostel's complaints
+    // Staff sees all incoming complaints to pick them up
+    // filter.hostelId could be used here if assigned
   }
 
   // Allow Admins to query specific statuses

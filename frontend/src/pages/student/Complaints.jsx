@@ -1,14 +1,46 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Plus, MessageSquare, AlertCircle, Clock, CheckCircle2 } from 'lucide-react'
+import api from '@/lib/api'
 
 export default function StudentComplaints() {
   const [complaintText, setComplaintText] = useState('')
+  const [title, setTitle] = useState('')
   const [category, setCategory] = useState('Maintenance')
+  const [complaints, setComplaints] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  const handleSubmit = (e) => {
+  const fetchComplaints = async () => {
+     try {
+        const { data } = await api.get('/complaints')
+        setComplaints(data.data.complaints)
+     } catch (err) {
+        console.error('Failed to fetch complaints', err)
+     } finally {
+        setLoading(false)
+     }
+  }
+
+  useEffect(() => {
+     fetchComplaints()
+  }, [])
+
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    // Mock submit
-    setComplaintText('')
+    if (!title || !complaintText) return
+
+    try {
+       const res = await api.post('/complaints', {
+          title,
+          description: complaintText,
+          category: category.toUpperCase()
+       })
+       // Optimistically inject into state or re-fetch
+       setComplaints([res.data.data.complaint, ...complaints])
+       setComplaintText('')
+       setTitle('')
+    } catch (err) {
+       console.error('Failed to register complaint', err)
+    }
   }
 
   return (
@@ -21,14 +53,26 @@ export default function StudentComplaints() {
               
               <div className="space-y-2">
                 <label className="text-sm font-medium">Category</label>
-                <div className="flex gap-4">
-                  {['Maintenance', 'Cleaning', 'Noise', 'Other'].map(cat => (
+                <div className="flex gap-4 flex-wrap sm:flex-nowrap">
+                  {['Maintenance', 'Cleaning', 'Food', 'Security', 'Other'].map(cat => (
                      <label key={cat} className={`flex-1 flex cursor-pointer items-center justify-center p-3 rounded-xl border text-sm font-medium transition-all ${category === cat ? 'bg-primary text-white border-primary shadow-lg shadow-primary/20' : 'bg-background hover:bg-slate-50 dark:hover:bg-slate-900 border-input'}`}>
                        <input type="radio" className="sr-only" checked={category === cat} onChange={() => setCategory(cat)} />
                        {cat}
                      </label>
                   ))}
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Title Summarization</label>
+                <input 
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  className="w-full p-4 rounded-xl border border-input bg-background/50 focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-sm"
+                  placeholder="Brief title (e.g. Broken Fan)"
+                  required
+                />
               </div>
 
               <div className="space-y-2">
@@ -57,29 +101,34 @@ export default function StudentComplaints() {
             </h3>
             
             <div className="space-y-4">
-               {/* Ticket Card */}
-               <div className="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/20">
-                  <div className="flex justify-between items-start mb-3">
-                    <span className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-500 px-2 py-0.5 bg-amber-500/10 rounded-full">Maintenance</span>
-                    <span className="text-xs font-mono text-muted-foreground">#1058</span>
-                  </div>
-                  <h4 className="text-sm font-semibold mb-2">Leaking sink in bathroom</h4>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Clock className="w-3 h-3" /> Reported 2 days ago
-                  </div>
-               </div>
-
-               {/* Ticket Card */}
-               <div className="p-5 rounded-2xl bg-slate-100 dark:bg-slate-800/50 border border-border">
-                  <div className="flex justify-between items-start mb-3">
-                    <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-500 px-2 py-0.5 bg-emerald-500/10 rounded-full">Cleaning</span>
-                    <span className="text-xs font-mono text-muted-foreground">#1042</span>
-                  </div>
-                  <h4 className="text-sm font-semibold mb-2">Corridor needs sweeping</h4>
-                  <div className="flex items-center gap-2 text-xs text-emerald-600 dark:text-emerald-500 font-medium">
-                    <CheckCircle2 className="w-3 h-3" /> Resolved yesterday
-                  </div>
-               </div>
+               {loading ? (
+                  <p className="text-sm text-muted-foreground text-center">Loading...</p>
+               ) : complaints.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center">You have no active complaints.</p>
+               ) : (
+                 complaints.map(complaint => (
+                   <div key={complaint._id} className={`p-5 rounded-2xl border ${complaint.status === 'RESOLVED' ? 'bg-slate-100 dark:bg-slate-800/50 border-border' : 'bg-amber-500/10 border-amber-500/20'}`}>
+                      <div className="flex justify-between items-start mb-3">
+                        <span className={`text-xs font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${complaint.status === 'RESOLVED' ? 'text-emerald-600 dark:text-emerald-500 bg-emerald-500/10' : 'text-amber-600 dark:text-amber-500 bg-amber-500/10'}`}>
+                          {complaint.category || 'Other'}
+                        </span>
+                        <span className="text-xs font-mono text-muted-foreground">#{complaint._id.substring(0, 6)}</span>
+                      </div>
+                      <h4 className="text-sm font-semibold mb-2">{complaint.title || 'Untitled Complaint'}</h4>
+                      <div className="flex items-center gap-2 text-xs font-medium">
+                        {complaint.status === 'RESOLVED' ? (
+                          <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-500 font-medium">
+                            <CheckCircle2 className="w-3 h-3" /> Resolved
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 text-muted-foreground">
+                            <Clock className="w-3 h-3" /> {complaint.status === 'IN_PROGRESS' ? 'In Progress' : 'Pending'}
+                          </span>
+                        )}
+                      </div>
+                   </div>
+                 ))
+               )}
             </div>
          </div>
       </div>

@@ -16,17 +16,23 @@ try {
 exports.createRazorpayOrder = async (amountInINR, receiptId) => {
   if (!razorpayInstance) throw new AppError("Payment Gateway is currently unavailable.", 503);
 
+  if (!amountInINR || amountInINR <= 0) {
+    throw new AppError("Payment amount must be greater than 0.", 400);
+  }
+
   const options = {
-    amount: amountInINR * 100, // Razorpay uses paisa
+    amount: Math.round(amountInINR) * 100, // Razorpay uses paisa (integer only)
     currency: "INR",
-    receipt: receiptId.toString()
+    receipt: receiptId.toString().slice(0, 40) // Razorpay receipt max 40 chars
   };
 
   try {
     const order = await razorpayInstance.orders.create(options);
     return order;
   } catch (err) {
-    throw new AppError(`Razorpay Error: ${err.message}`, 500);
+    // Razorpay errors nest the message inside err.error
+    const message = err?.error?.description || err?.message || 'Unknown Razorpay error';
+    throw new AppError(`Payment gateway error: ${message}`, 502);
   }
 };
 

@@ -9,5 +9,6 @@ router.use(authMiddleware.protect);
 router.post('/create-order', authMiddleware.restrictTo('STUDENT'), paymentController.createOrder);
 router.post('/verify', authMiddleware.restrictTo('STUDENT'), paymentController.verifyPayment);
 router.get('/my-transactions', authMiddleware.restrictTo('STUDENT'), paymentController.getMyTransactions);
+router.get('/all', authMiddleware.restrictTo('ADMIN', 'STAFF'), paymentController.getAllPayments);
 
 module.exports = router;

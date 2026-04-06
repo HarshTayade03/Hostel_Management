@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const cookieParser = require('cookie-parser');
 const AppError = require('./core/utils/AppError');
 const globalErrorHandler = require('./core/middlewares/errorHandler');
 
@@ -22,14 +23,15 @@ app.use(cors({
   credentials: true
 }));
 
-// Body parser
+// Body parser & Cookie parser
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 // Global Rate Limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  max: process.env.NODE_ENV === 'production' ? 100 : 1000, // 1000 in dev, 100 in prod
   message: 'Too many requests from this IP, please try again after 15 minutes'
 });
 app.use('/api', limiter);
@@ -41,6 +43,8 @@ const roomRoutes = require('./modules/rooms/room.routes');
 const hostelRoutes = require('./modules/hostels/hostel.routes');
 const complaintRoutes = require('./modules/complaints/complaint.routes');
 const paymentRoutes = require('./modules/payments/payment.routes');
+const notificationRoutes = require('./modules/notifications/notification.routes');
+const leaveRoutes = require('./modules/leaves/leave.routes');
 
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
@@ -48,6 +52,8 @@ app.use('/api/v1/rooms', roomRoutes);
 app.use('/api/v1/hostels', hostelRoutes);
 app.use('/api/v1/complaints', complaintRoutes);
 app.use('/api/v1/payments', paymentRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
+app.use('/api/v1/leaves', leaveRoutes);
 
 
 // Handle undefined routes safely for Express 5 / newer path-to-regexp

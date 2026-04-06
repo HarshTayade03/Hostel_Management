@@ -12,7 +12,8 @@ export default function Profile() {
     email: '',
     phone: '',
     gender: '',
-    hostel: ''
+    hostel: '',
+    avatar: ''
   })
   const [isLoading, setIsLoading] = useState(false)
 
@@ -23,17 +24,37 @@ export default function Profile() {
         email: user.email,
         phone: user.phone || '',
         gender: user.gender || '',
-        hostel: user.hostelId?.name || 'Not assigned'
+        hostel: user.hostelId?.name || 'Not assigned',
+        avatar: user.avatar || ''
       })
     }
   }, [user])
+
+  const handleImageUpload = (e) => {
+     const file = e.target.files[0]
+     if (file) {
+        const reader = new FileReader()
+        reader.onloadend = () => {
+           setProfile(prev => ({ ...prev, avatar: reader.result }))
+           // Auto save the image or let user click 'Save Profile'
+           setIsEditing(true)
+        }
+        reader.readAsDataURL(file)
+     }
+  }
 
   const handleSave = async (e) => {
     e.preventDefault()
     setIsLoading(true)
     try {
-      // TODO: Add API call to update profile
-      await new Promise(resolve => setTimeout(resolve, 1000)) // Simulate API call
+      await api.patch('/users/me', {
+         name: profile.name,
+         phone: profile.phone,
+         gender: profile.gender,
+         avatar: profile.avatar
+      })
+      // Optional: Refresh AuthContext or window to reflect global header updates
+      window.location.reload()
     } catch (error) {
       console.error('Error updating profile:', error)
     } finally {
@@ -54,10 +75,11 @@ export default function Profile() {
          {/* Profile Picture */}
          <div className="flex-shrink-0 relative group">
             <div className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-background bg-slate-200 dark:bg-slate-800 overflow-hidden relative shadow-2xl">
-               <img src="https://api.dicebear.com/7.x/notionists/svg?seed=John&backgroundColor=transparent" alt="Avatar" className="w-full h-full object-cover" />
-               <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+               <img src={profile.avatar || "https://api.dicebear.com/7.x/notionists/svg?seed=John&backgroundColor=transparent"} alt="Avatar" className="w-full h-full object-cover" />
+               <label className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
                   <Camera className="w-8 h-8 text-white" />
-               </div>
+                  <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+               </label>
             </div>
          </div>
 

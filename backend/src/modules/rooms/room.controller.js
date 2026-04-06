@@ -61,3 +61,25 @@ exports.triggerAutoAllocate = catchAsync(async (req, res, next) => {
     data: result
   });
 });
+
+exports.updateRoom = catchAsync(async (req, res, next) => {
+  const allowedFields = ['status', 'capacity', 'floor', 'roomNumber'];
+  const filteredBody = {};
+  Object.keys(req.body).forEach(el => {
+    if (allowedFields.includes(el)) filteredBody[el] = req.body[el];
+  });
+
+  const room = await Room.findByIdAndUpdate(req.params.id, filteredBody, {
+    new: true,
+    runValidators: true
+  }).populate('hostelId', 'name type').populate('occupants', 'name email');
+
+  if (!room) {
+    return next(new AppError('No room found with that ID', 404));
+  }
+
+  res.status(200).json({
+    status: 'success',
+    data: { room }
+  });
+});

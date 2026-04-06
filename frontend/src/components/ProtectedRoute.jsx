@@ -14,8 +14,8 @@ const ProtectedRoute = ({ allowedRoles }) => {
     );
   }
 
-  // If no token or no user, redirect immediately to login
-  if (!token || !user) {
+  // Since JWT is in httpOnly cookie, we rely completely on the user profile state
+  if (!user) {
     return <Navigate to="/login" replace />;
   }
 

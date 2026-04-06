@@ -8,23 +8,18 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // SECURE AUTH: Never trust localStorage for User Roles. Rely completely on the JWT token verification via the Backend Server.
+  // SECURE AUTH: Rely completely on the HTTPOnly JWT cookie verification via the Backend Server.
   useEffect(() => {
     const fetchSecureProfile = async () => {
-      const storedToken = localStorage.getItem('hostellite_token');
-      if (!storedToken) {
-        setLoading(false);
-        return;
-      }
-      
       try {
-        setToken(storedToken);
         // Explicitly hit the Backend Server for Auth logic and strict state routing
+        // This will automatically send the HTTPOnly cookie if it exists
         const { data } = await api.get('/users/me');
         setUser(data.data.user);
       } catch (error) {
-        console.error("JWT compromised or expired. Logging out automatically.");
-        logout();
+        // If 401 Unauthorized, it means cookie lacks or is invalid
+        console.error("JWT compromised, expired, or missing. Logging out automatically.");
+        setUser(null);
       } finally {
         setLoading(false);
       }
@@ -33,13 +28,13 @@ export const AuthProvider = ({ children }) => {
     fetchSecureProfile();
   }, []);
 
+
+
   const login = async (email, password) => {
     try {
       const response = await api.post('/auth/login', { email, password });
-      const { token, data } = response.data;
+      const { data } = response.data;
       
-      localStorage.setItem('hostellite_token', token);
-      setToken(token);
       setUser(data.user);
       
       return data.user;
@@ -51,10 +46,8 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       const response = await api.post('/auth/register', userData);
-      const { token, data } = response.data;
+      const { data } = response.data;
       
-      localStorage.setItem('hostellite_token', token);
-      setToken(token);
       setUser(data.user);
       
       return data.user;
@@ -63,9 +56,12 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('hostellite_token');
-    setToken(null);
+  const logout = async () => {
+    try {
+      await api.get('/auth/logout');
+    } catch (err) {
+      console.error(err);
+    }
     setUser(null);
   };
 

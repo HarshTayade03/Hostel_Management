@@ -19,12 +19,14 @@ import StudentFees from '@/pages/student/Fees'
 import StudentComplaints from '@/pages/student/Complaints'
 import StudentProfile from '@/pages/student/Profile'
 import LeaveApplication from '@/pages/student/LeaveApplication'
+import StudentNotifications from '@/pages/student/Notifications'
 
 // Staff Pages
 import StaffDashboard from '@/pages/staff/Dashboard'
 import StaffTasks from '@/pages/staff/Tasks'
 import StaffComplaints from '@/pages/staff/Complaints'
 import StaffRooms from '@/pages/staff/Rooms'
+import StaffNotifications from '@/pages/staff/Notifications'
 
 // Admin Pages
 import AdminDashboard from '@/pages/admin/Dashboard'
@@ -55,6 +57,7 @@ function App() {
                 <Route path="complaints" element={<StudentComplaints />} />
                 <Route path="profile" element={<StudentProfile />} />
                 <Route path="leave" element={<LeaveApplication />} />
+                <Route path="notifications" element={<StudentNotifications />} />
               </Route>
             </Route>
 
@@ -66,6 +69,7 @@ function App() {
                 <Route path="tasks" element={<StaffTasks />} />
                 <Route path="complaints" element={<StaffComplaints />} />
                 <Route path="rooms" element={<StaffRooms />} />
+                <Route path="notifications" element={<StaffNotifications />} />
               </Route>
             </Route>
 

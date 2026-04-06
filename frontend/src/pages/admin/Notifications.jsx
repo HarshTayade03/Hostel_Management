@@ -1,39 +1,53 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Send, Megaphone, Clock, Users, ShieldAlert, CheckCircle2 } from 'lucide-react'
-
-const initialHistory = [
-  { id: 1, title: 'Server Maintenance', desc: 'The hostel WiFi will be down from 2 AM to 4 AM tonight.', audience: 'All Residents', type: 'Warning', time: 'Yesterday, 14:00' },
-  { id: 2, title: 'New Cleaning Protocol', desc: 'Staff must ensure deep cleaning of all common areas every weekend.', audience: 'Staff Only', type: 'Info', time: 'Mon, 09:15' },
-  { id: 3, title: 'Rent Reminder', desc: 'Please clear your pending dues before the 5th to avoid late fees.', audience: 'All Residents', type: 'Alert', time: '01 Nov, 10:00' }
-]
+import api from '@/lib/api'
 
 export default function AdminNotifications() {
-  const [history, setHistory] = useState(initialHistory)
+  const [history, setHistory] = useState([])
   const [title, setTitle] = useState('')
   const [desc, setDesc] = useState('')
   const [audience, setAudience] = useState('All Residents')
   const [type, setType] = useState('Info')
   const [isSending, setIsSending] = useState(false)
 
-  const handleBroadcast = (e) => {
+  const fetchNotifications = async () => {
+     try {
+        const { data } = await api.get('/notifications')
+        setHistory(data.data.notifications)
+     } catch (err) {
+        console.error('Failed to fetch notifications', err)
+     }
+  }
+
+  useEffect(() => {
+     fetchNotifications()
+  }, [])
+
+  const handleBroadcast = async (e) => {
     e.preventDefault()
     if (!title || !desc) return
     setIsSending(true)
     
-    setTimeout(() => {
-      setHistory([{
-         id: Date.now(),
-         title,
-         desc,
-         audience,
-         type,
-         time: 'Just now'
-      }, ...history])
+    try {
+      const { data } = await api.post('/notifications', { title, desc, audience, type, time: 'Just now' })
+      setHistory([data.data.notification, ...history])
       setTitle('')
       setDesc('')
+    } catch (err) {
+      console.error('Failed to broadcast', err)
+    } finally {
       setIsSending(false)
-    }, 800)
+    }
+  }
+
+  const handleDelete = async (id) => {
+     try {
+       await api.delete(`/notifications/${id}`)
+       setHistory(history.filter(h => h._id !== id))
+     } catch (err) {
+       console.error('Failed to delete', err)
+     }
   }
 
   return (
@@ -116,7 +130,7 @@ export default function AdminNotifications() {
                   {history.map((item, idx) => (
                      <motion.div 
                         initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
-                        key={item.id} className="relative pl-6"
+                        key={item._id} className="relative pl-6"
                      >
                         {/* Timeline dot */}
                         <div className={`absolute -left-[9px] top-1 w-4 h-4 rounded-full border-2 border-background flex items-center justify-center ${
@@ -125,27 +139,36 @@ export default function AdminNotifications() {
                            {idx === 0 && <span className="absolute w-6 h-6 rounded-full bg-primary/20 animate-ping" />}
                         </div>
 
-                        <div className="glass-card p-5 rounded-2xl hover:shadow-lg transition-all group">
-                           <div className="flex justify-between items-start mb-2">
-                              <h4 className="font-heading font-bold text-foreground group-hover:text-primary transition-colors">{item.title}</h4>
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-                                 <Clock className="w-3 h-3" /> {item.time}
-                              </span>
-                           </div>
-                           <p className="text-sm text-muted-foreground mb-4 leading-relaxed">{item.desc}</p>
-                           
-                           <div className="flex items-center gap-3 pt-4 border-t border-border/50">
-                              <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1 rounded-lg">
-                                 <Users className="w-3.5 h-3.5" /> {item.audience}
-                              </div>
-                              <div className={`flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-lg ${
-                                 item.type === 'Info' ? 'text-primary bg-primary/10' : item.type === 'Warning' ? 'text-amber-500 bg-amber-500/10' : 'text-rose-500 bg-rose-500/10'
-                              }`}>
-                                 {item.type === 'Alert' ? <ShieldAlert className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />} {item.type}
-                              </div>
-                           </div>
-                        </div>
-                     </motion.div>
+                         <div className="glass-card p-5 rounded-2xl hover:shadow-lg transition-all group relative">
+                            {/* Delete Button */}
+                            <button 
+                               onClick={() => handleDelete(item._id)}
+                               className="absolute top-4 right-4 p-1.5 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                               title="Delete Announcement"
+                            >
+                               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                            </button>
+
+                            <div className="flex justify-between items-start mb-2 pr-8">
+                               <h4 className="font-heading font-bold text-foreground group-hover:text-primary transition-colors">{item.title}</h4>
+                               <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1 shrink-0">
+                                  <Clock className="w-3 h-3" /> {item.time}
+                               </span>
+                            </div>
+                            <p className="text-sm text-muted-foreground mb-4 leading-relaxed">{item.desc}</p>
+                            
+                            <div className="flex items-center gap-3 pt-4 border-t border-border/50">
+                               <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800/80 px-2.5 py-1 rounded-lg">
+                                  <Users className="w-3.5 h-3.5" /> {item.audience}
+                               </div>
+                               <div className={`flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-lg ${
+                                  item.type === 'Info' ? 'text-primary bg-primary/10' : item.type === 'Warning' ? 'text-amber-500 bg-amber-500/10' : 'text-rose-500 bg-rose-500/10'
+                               }`}>
+                                  {item.type === 'Alert' ? <ShieldAlert className="w-3.5 h-3.5" /> : <CheckCircle2 className="w-3.5 h-3.5" />} {item.type}
+                               </div>
+                            </div>
+                         </div>
+                      </motion.div>
                   ))}
                </AnimatePresence>
              </div>
