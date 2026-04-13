@@ -19,7 +19,7 @@ if (process.env.NODE_ENV === 'development') {
 
 // Enable CORS securely for React Frontend
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5174', 'http://127.0.0.1:5174'], // React Dev Server default ports
+  origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5174', 'http://127.0.0.1:5174', 'https://hostel-lite-frontend-d3ut8mgb5-harsh-tayades-projects.vercel.app/'], // React Dev Server default ports
   credentials: true
 }));
 
@@ -55,6 +55,14 @@ app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/leaves', leaveRoutes);
 
+// Root Route
+app.get('/', (req, res) => {
+  res.status(200).json({
+    status: 'success',
+    message: 'Welcome to the Hostel Management System API',
+    version: '1.0.0'
+  });
+});
 
 // Handle undefined routes safely for Express 5 / newer path-to-regexp
 app.use((req, res, next) => {
